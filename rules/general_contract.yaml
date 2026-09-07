@@ -1,0 +1,206 @@
+# 通用合同/文档验真规则集 v1.0
+# 参考：contract-lint（确定性规则+规则ID+严重度）、Legal-Conflict-Resolver（冲突检测+严重度分级）、
+#       Vaulytica（跨文档检查）、ContractGuard（红旗/警告/保护/缺失四分类）
+name: "通用合同与文档验真规则"
+version: "1.0"
+description: |
+  面向合同、协议、企业资质文件等多文档场景的验真规则集。
+  覆盖字段级提取与格式校验、必含/禁止条款检查、跨文档一致性冲突检测。
+  可根据具体行业（5类产业）扩展字段与条款。
+
+# ---------- 字段级规则 ----------
+fields:
+  - name: "文档标题"
+    required: true
+    patterns:
+      - "^(.+?合同.+?)$"
+      - "^(.+?协议.+?)$"
+      - "标题[:：]\\s*(.+)"
+    description: "文档标题，用于识别文档类型"
+
+  - name: "甲方/委托方"
+    required: true
+    patterns:
+      - "甲方[:：]\\s*(.+)"
+      - "委托方[:：]\\s*(.+)"
+      - "发包方[:：]\\s*(.+)"
+      - "买方[:：]\\s*(.+)"
+    description: "合同甲方/委托方全称"
+
+  - name: "乙方/受托方"
+    required: true
+    patterns:
+      - "乙方[:：]\\s*(.+)"
+      - "受托方[:：]\\s*(.+)"
+      - "承包方[:：]\\s*(.+)"
+      - "卖方[:：]\\s*(.+)"
+    description: "合同乙方/受托方全称"
+
+  - name: "签订日期"
+    required: true
+    patterns:
+      - "签订日期[:：]\\s*(\\d{4}[-/年]\\d{1,2}[-/月]\\d{1,2}日?)"
+      - "签署日期[:：]\\s*(\\d{4}[-/年]\\d{1,2}[-/月]\\d{1,2}日?)"
+      - "(\\d{4}年\\d{1,2}月\\d{1,2}日)\\s*(?:签订|签署)"
+    format: "date"
+    description: "合同签订/签署日期"
+
+  - name: "生效日期"
+    required: false
+    patterns:
+      - "生效日期[:：]\\s*(\\d{4}[-/年]\\d{1,2}[-/月]\\d{1,2}日?)"
+      - "自(\\d{4}年\\d{1,2}月\\d{1,2}日)起生效"
+    format: "date"
+    description: "合同生效日期"
+
+  - name: "合同金额"
+    required: false
+    patterns:
+      - "合同金额[:：]\\s*(.+?)\\s*[（(]"
+      - "总金额[:：]\\s*(.+?)\\s*[（(]"
+      - "合同总价[:：]\\s*(.+?)\\s*[（(]"
+      - "合同金额[:：]\\s*([\\d,]+\\.?\\d*\\s*(?:元|万元|人民币)?)"
+      - "总金额[:：]\\s*([\\d,]+\\.?\\d*\\s*(?:元|万元|人民币)?)"
+    format: "currency"
+    description: "合同总金额"
+
+  - name: "付款方式"
+    required: false
+    patterns:
+      - "付款方式[:：]\\s*(.+)"
+      - "支付方式[:：]\\s*(.+)"
+    description: "款项支付方式与节奏"
+
+  - name: "合同期限"
+    required: false
+    patterns:
+      - "合同期限[:：]\\s*(.+)"
+      - "有效期[:：]\\s*(.+)"
+      - "服务期限[:：]\\s*(.+)"
+    description: "合同有效期限"
+
+  - name: "联系人"
+    required: false
+    patterns:
+      - "联系人[:：]\\s*(.+)"
+      - "项目联系人[:：]\\s*(.+)"
+    description: "项目/合同联系人"
+
+  - name: "联系电话"
+    required: false
+    patterns:
+      - "联系电话[:：]\\s*(1[3-9]\\d{9}|0\\d{2,3}-?\\d{7,8})"
+      - "电话[:：]\\s*(1[3-9]\\d{9}|0\\d{2,3}-?\\d{7,8})"
+    format: "phone"
+    description: "联系电话"
+
+# ---------- 条款规则 ----------
+clauses:
+  # 必含条款（缺失则报 high/critical）
+  required:
+    - id: "C-REQUIRED-001"
+      name: "违约责任条款"
+      keywords: ["违约责任", "违约", "违约金", "赔偿损失"]
+      severity: "high"
+      description: "合同应明确约定违约责任与违约金计算方式"
+
+    - id: "C-REQUIRED-002"
+      name: "争议解决条款"
+      keywords: ["争议解决", "仲裁", "管辖", "诉讼", "人民法院"]
+      severity: "high"
+      description: "合同应明确争议解决方式（诉讼管辖法院或仲裁机构）"
+
+    - id: "C-REQUIRED-003"
+      name: "保密条款"
+      keywords: ["保密", "机密", "商业秘密", "保密义务"]
+      severity: "medium"
+      description: "涉及商业信息的合同应包含保密条款"
+
+    - id: "C-REQUIRED-004"
+      name: "不可抗力条款"
+      keywords: ["不可抗力", "免责事由", "情势变更"]
+      severity: "medium"
+      description: "合同应约定不可抗力情形下的责任免除"
+
+    - id: "C-REQUIRED-005"
+      name: "合同解除/终止条款"
+      keywords: ["解除合同", "终止合同", "合同解除", "合同终止", "提前解除"]
+      severity: "medium"
+      description: "合同应约定解除或终止的条件与程序"
+
+    - id: "C-REQUIRED-006"
+      name: "知识产权条款"
+      keywords: ["知识产权", "著作权", "专利权", "商标权", "成果归属"]
+      severity: "medium"
+      description: "涉及创作/开发的合同应明确知识产权归属"
+
+  # 禁止条款（出现则报 high/critical）
+  forbidden:
+    - id: "C-FORBIDDEN-001"
+      name: "空白占位符未填写"
+      patterns:
+        - "_{3,}"
+        - "XXX{2,}"
+        - "TODO"
+        - "待填写"
+        - "待补充"
+        - "【.*?】"
+      severity: "critical"
+      description: "合同中不应存在未填写的空白占位符，签署前必须补全"
+
+    - id: "C-FORBIDDEN-002"
+      name: "不平等格式条款（单方免责）"
+      keywords:
+        - "概不负责"
+        - "一律免责"
+        - "不承担任何责任"
+        - "最终解释权归"
+      severity: "high"
+      description: "存在单方免责或最终解释权等可能被认定为无效的格式条款"
+
+    - id: "C-FORBIDDEN-003"
+      name: "模糊金额表述"
+      patterns:
+        - "金额约[\\d,]+元"
+        - "大概[\\d,]+元"
+        - "人民币若干元"
+      severity: "medium"
+      description: "合同金额应使用确定数值，不应使用模糊表述"
+
+# ---------- 跨文档一致性规则 ----------
+cross_document:
+  - id: "X-DOC-001"
+    name: "甲方名称一致性"
+    fields: ["甲方/委托方"]
+    severity: "high"
+    description: "多份关联文档中甲方/委托方名称应完全一致"
+
+  - id: "X-DOC-002"
+    name: "乙方名称一致性"
+    fields: ["乙方/受托方"]
+    severity: "high"
+    description: "多份关联文档中乙方/受托方名称应完全一致"
+
+  - id: "X-DOC-003"
+    name: "合同金额一致性"
+    fields: ["合同金额"]
+    severity: "high"
+    description: "主合同与附件/补充协议中的合同金额应一致"
+
+  - id: "X-DOC-004"
+    name: "签订日期一致性"
+    fields: ["签订日期"]
+    severity: "medium"
+    description: "多份关联文档的签订日期应一致或符合时间逻辑"
+
+  - id: "X-DOC-005"
+    name: "生效日期一致性"
+    fields: ["生效日期"]
+    severity: "medium"
+    description: "主合同与附件的生效日期应一致"
+
+  - id: "X-DOC-006"
+    name: "合同期限一致性"
+    fields: ["合同期限"]
+    severity: "medium"
+    description: "多份文档中的合同期限/服务期限应一致"
