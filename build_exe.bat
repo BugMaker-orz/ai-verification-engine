@@ -65,7 +65,10 @@ echo [4/4] Building exe, this is slow, please wait ...
   --windowed ^
   --name "AI-Verification-Engine" ^
   --collect-all gradio ^
-  --collect-data safehttpx ^
+  --collect-all gradio_client ^
+  --collect-all safehttpx ^
+  --collect-all groovy ^
+  --collect-all huggingface_hub ^
   --hidden-import uvicorn.logging ^
   --hidden-import uvicorn.loops.auto ^
   --hidden-import uvicorn.protocols.http.auto ^
