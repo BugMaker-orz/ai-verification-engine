@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -22,11 +23,35 @@ from src.engine import VerificationEngine
 from src.rules import list_available_rules
 
 
-# ---------- 配置 ----------
-RULES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rules")
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "ai_config.json")
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+# ---------- 路径配置（兼容源码运行与 PyInstaller 打包运行）----------
+def _app_root() -> str:
+    """程序运行目录：源码=项目目录；打包后=exe 所在目录（用户可写）。"""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def _resource_root() -> str:
+    """内置资源目录：打包后为 _MEIPASS（只读，存放内置 rules 等）。"""
+    if getattr(sys, "frozen", False):
+        return getattr(sys, "_MEIPASS", _app_root())
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+APP_DIR = _app_root()
+
+# 规则目录：优先用 exe 旁边的 rules/（用户可自由增删规则）
+RULES_DIR = os.path.join(APP_DIR, "rules")
+if getattr(sys, "frozen", False):
+    _builtin_rules = os.path.join(_resource_root(), "rules")
+    if not os.path.isdir(RULES_DIR) and os.path.isdir(_builtin_rules):
+        # 首次运行：把内置默认规则复制到 exe 旁边
+        shutil.copytree(_builtin_rules, RULES_DIR)
+
+CONFIG_PATH = os.path.join(APP_DIR, "config", "ai_config.json")
+OUTPUT_DIR = os.path.join(APP_DIR, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
 SEVERITY_LABEL = {
     "critical": "严重", "high": "高", "medium": "中", "low": "低", "info": "提示",
