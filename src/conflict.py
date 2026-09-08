@@ -15,7 +15,6 @@ from .extractor import DocFields
 from .rules import CrossDocRule, RuleSet
 from . import semantic
 from .ai_client import AIConfig
-from typing import Optional
 
 
 @dataclass

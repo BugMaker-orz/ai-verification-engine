@@ -9,7 +9,6 @@ from .parser import ParsedDoc
 from .rules import FieldRule, RuleSet
 from . import semantic
 from .ai_client import AIConfig
-from typing import Optional
 
 
 @dataclass
