@@ -353,6 +353,12 @@ def build_ui():
         # 页面加载时读取已保存的 AI 配置
         demo.load(fn=_load_ai_config_ui, outputs=[ai_base_url, ai_key, ai_model, ai_status])
 
+        # 退出程序按钮（关闭后台进程，释放端口）
+        with gr.Row():
+            shutdown_btn = gr.Button("退出程序（关闭后台）", variant="stop", size="sm")
+        shutdown_status = gr.Markdown("")
+        shutdown_btn.click(fn=_shutdown_app, outputs=shutdown_status)
+
         gr.Markdown("""
         <div style="text-align:center;color:#94a3b8;font-size:0.8rem;margin-top:1rem;">
         AI 验真引擎 · 所有检查在本地运行，文件不会上传到任何服务器<br>
@@ -361,6 +367,20 @@ def build_ui():
         """)
 
     return demo
+
+
+def _shutdown_app() -> str:
+    """优雅退出：延迟 0.5 秒终止进程，给前端响应留时间。"""
+    import os
+    import threading
+    import time
+
+    def _exit():
+        time.sleep(0.5)
+        os._exit(0)
+
+    threading.Thread(target=_exit, daemon=True).start()
+    return "程序正在退出，此页面可关闭。"
 
 
 def _find_free_port(start: int = 7860, end: int = 7875) -> int:
