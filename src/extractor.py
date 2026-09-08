@@ -77,15 +77,23 @@ def extract_fields(doc: ParsedDoc, ruleset: RuleSet,
                    ai_config: Optional[AIConfig] = None) -> DocFields:
     """从单份文档中按规则库提取全部字段。
 
-    ai_config 就绪时，正则提取不到的字段用 AI 语义提取增强。
+    ai_config 就绪时，正则提取不到的字段用 AI 语义提取增强
+    （每份文档批量合并为一次调用）。
     """
     result = DocFields(doc=doc)
+    ai_ready = ai_config is not None and ai_config.is_ready()
+
+    # 第一遍：全部字段先做正则提取
+    missing_rules: List[FieldRule] = []
+    missing_names: List[str] = []
     for name, rule in ruleset.fields.items():
         value = rule.extract(doc.text)
         extract_method = "正则提取"
-        # 正则提取不到时，用 AI 语义提取增强
-        if value is None and ai_config is not None and ai_config.is_ready():
-            value, extract_method = semantic.extract_field_semantic(doc.text, rule, ai_config)
+        if value is None and ai_ready:
+            # 记录待 AI 批量提取的字段
+            missing_rules.append(rule)
+            missing_names.append(name)
+            extract_method = "正则未命中，待 AI 提取"
         found = value is not None
         format_valid = None
         format_note = ""
@@ -99,6 +107,27 @@ def extract_fields(doc: ParsedDoc, ruleset: RuleSet,
             format_note=format_note,
             source_line=_find_line_number(doc.text, value) if found else None,
         )
+
+    # 第二遍：正则未命中的字段批量走 AI 提取（每份文档一次请求）
+    if missing_rules and ai_ready:
+        batch = semantic.extract_fields_semantic_batch(doc.text, missing_rules, ai_config)
+        for name in missing_names:
+            value, extract_method = batch.get(name, (None, "正则未命中，AI 未启用"))
+            if value is None:
+                # AI 也未提取到，保持未找到状态
+                result.fields[name].value = None
+                result.fields[name].found = False
+                continue
+            rule = next(r for r in missing_rules if r.name == name)
+            format_valid, format_note = (None, "")
+            if rule.format:
+                format_valid, format_note = _check_format(value, rule.format)
+            result.fields[name].value = value
+            result.fields[name].found = True
+            result.fields[name].format_valid = format_valid
+            result.fields[name].format_note = format_note
+            result.fields[name].source_line = _find_line_number(doc.text, value)
+
     return result
 
 

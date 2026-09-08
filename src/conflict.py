@@ -123,19 +123,25 @@ def detect_conflicts(doc_fields_list: List[DocFields], ruleset: RuleSet,
             # 两两比对
             base_val = present[0][1]
             conflicts = []
+            pending_pairs: List[Tuple[str, str, str]] = []   # (字段名, 基准值, 对比值)
+            pending_meta: List[Tuple[DocFields, str, str, str]] = []  # (df, val, base_val, desc)
             for df, val in present[1:]:
                 is_conflict, desc = _values_conflict(base_val, val, field_name)
                 if is_conflict:
-                    # AI 语义二次确认：排除"表述不同但意思相同"的误报
                     if ai_ready:
-                        ai_conflict, ai_reason = semantic.semantic_conflict_check(
-                            base_val, val, field_name, ai_config
-                        )
-                        if not ai_conflict:
-                            # AI 判定为语义一致，跳过此冲突
-                            continue
-                        desc = f"{desc}（AI 确认：{ai_reason}）"
-                    conflicts.append((df, val, desc))
+                        # 收集待 AI 批量语义确认
+                        pending_pairs.append((field_name, base_val, val))
+                        pending_meta.append((df, val, base_val, desc))
+                    else:
+                        conflicts.append((df, val, desc))
+
+            # AI 批量语义二次确认：一次请求排除"表述不同但意思相同"的误报
+            if ai_ready and pending_pairs:
+                ai_results = semantic.semantic_conflict_check_batch(pending_pairs, ai_config)
+                for (df, val, base_val, desc), (ai_conflict, ai_reason) in zip(pending_meta, ai_results):
+                    if not ai_conflict:
+                        continue
+                    conflicts.append((df, val, f"{desc}（AI 确认：{ai_reason}）"))
 
             if conflicts:
                 findings.append(ConflictFinding(
