@@ -1,10 +1,12 @@
 # AI 验真引擎
 
-多文件字段级对齐、跨文件冲突定位、规则驱动欠缺检查的自动化验真工具。
+多文件字段级对齐、跨文件冲突定位、规则驱动欠缺检查的自动化验真工具。支持 AI 语义增强，也可在无 AI 环境下纯规则运行。
 
 > 上传多份文件后，引擎自动做字段级对齐拆解和跨文件冲突定位，依据预设的条款规范查找文件中不足和欠缺的内容，输出带冲突定位、双源依据、补位建议的完整校验报告。
 
 ## 功能特性
+
+### 核心验真能力
 
 - **多格式文件解析**：支持 PDF / TXT / DOCX，统一输出纯文本与分页信息
 - **字段级对齐拆解**：基于规则库的正则提取，自动识别甲方、乙方、金额、日期等结构化字段
@@ -15,12 +17,27 @@
 - **验真评分**：100 分制 + A-F 等级，加权扣分（严重25/高10/中4/低1）
 - **双格式报告**：Markdown（可编辑）+ HTML（可视化，带严重度颜色标签）
 
+### AI 语义增强（可选）
+
+- **语义级条款匹配**：不只是关键词匹配，AI 理解条款语义（同义表述也能识别）
+- **冲突误报排除**：AI 二次确认，排除"表述不同但意思相同"的误报（如"28万元"vs"280,000元"）
+- **AI 字段提取增强**：正则提取不到时，AI 语义提取兜底
+- **AI 补位建议**：根据文档实际内容生成具体的修改建议和条款模板
+- **AI 总体评价**：3-5 句话的总体审查结论和优先改进方向
+- **自动降级**：未配置 AI 时自动使用基础规则匹配，所有功能正常
+
+### 使用方式
+
+- **Web 图形界面**：Gradio 构建，拖拽上传、可视化结果、报告下载，零命令行操作
+- **命令行工具**：适合脚本化和批量处理
+- **Python API**：可嵌入其他项目
+
 ## 快速开始
 
 ### 环境要求
 
 - Python 3.9+
-- 依赖：`pdfplumber`, `python-docx`, `PyYAML`, `Jinja2`
+- 依赖：`pdfplumber`, `python-docx`, `PyYAML`, `Jinja2`, `gradio`, `requests`
 
 ### 安装
 
@@ -43,7 +60,7 @@ python app.py
 5. 点击"开始验真"
 6. 页面显示评分、冲突列表、欠缺列表，可下载 HTML / Markdown 报告
 
-**支持的 AI 服务**：所有 OpenAI 兼容接口（DeepSeek、通义千问、豆包、OpenAI、本地模型等），只需填写对应的 base_url 和 model。
+**支持的 AI 服务**：所有 OpenAI 兼容接口（DeepSeek、通义千问、豆包、OpenAI、本地模型等），只需填写对应的 base_url 和 model。详见 [AI 配置指南](docs/AI配置指南.md)。
 
 ### 命令行使用
 
@@ -71,24 +88,30 @@ python cli.py -r rules/general_contract.yaml -f doc1.pdf doc2.pdf -o output/ --q
 
 ```python
 from src.engine import VerificationEngine
+from src.ai_client import AIConfig
 
-# 初始化引擎（加载规则集）
+# ---- 基础模式（无 AI）----
 engine = VerificationEngine(ruleset_path="rules/general_contract.yaml")
-
-# 执行验真
 result = engine.verify(["doc1.pdf", "doc2.txt"])
-
-# 打印摘要
 engine.print_summary(result)
-
-# 保存报告（Markdown + HTML）
 paths = engine.save_report(result, "output/", "report")
-print(paths["markdown"], paths["html"])
+
+# ---- AI 增强模式 ----
+ai_cfg = AIConfig(
+    base_url="https://api.deepseek.com/v1",
+    api_key="sk-xxx",
+    model="deepseek-chat",
+    enabled=True,
+)
+engine = VerificationEngine(ruleset_path="rules/general_contract.yaml", ai_config=ai_cfg)
+result = engine.verify(["doc1.pdf", "doc2.txt"])
+# result.ai_enabled = True, result.ai_model = "deepseek-chat"
+# result.ai_summary = AI 生成的总体评价
 ```
 
 ## 规则库配置
 
-规则库采用 YAML 格式，位于 `rules/` 目录。可根据不同行业（5类产业）扩展字段与条款。
+规则库采用 YAML 格式，位于 `rules/` 目录。可根据不同行业扩展字段与条款。详见 [规则库编写指南](docs/规则库编写指南.md)。
 
 ```yaml
 name: "规则集名称"
@@ -124,9 +147,13 @@ cross_document:            # 跨文档一致性规则
 
 ```
 ai-verification-engine/
+├── app.py                  # Web 图形界面（Gradio）
 ├── cli.py                  # 命令行入口
 ├── requirements.txt        # Python 依赖
-├── README.md               # 项目说明
+├── README.md               # 项目说明（本文件）
+├── CHANGELOG.md            # 版本变更日志
+├── config/
+│   └── ai_config.json      # AI 配置（自动生成，含 API Key，勿提交到公开仓库）
 ├── src/
 │   ├── __init__.py
 │   ├── engine.py           # 主引擎编排
@@ -135,7 +162,9 @@ ai-verification-engine/
 │   ├── extractor.py        # 字段提取与格式校验
 │   ├── conflict.py         # 跨文件冲突检测
 │   ├── gap.py              # 欠缺与违规检查
-│   └── report.py           # 报告生成（Markdown/HTML）
+│   ├── report.py           # 报告生成（Markdown/HTML）
+│   ├── ai_client.py        # AI API 客户端（OpenAI 兼容接口）
+│   └── semantic.py         # 语义理解模块（基础规则 + AI 双模式）
 ├── rules/
 │   └── general_contract.yaml  # 通用合同与文档验真规则
 ├── samples/
@@ -144,7 +173,10 @@ ai-verification-engine/
 ├── tests/
 │   └── test_engine.py      # 测试用例（7项）
 ├── docs/
-│   └── architecture.md     # 技术架构文档
+│   ├── architecture.md     # 技术架构文档
+│   ├── 零基础使用指南.md    # 面向非技术人员的使用指南
+│   ├── 规则库编写指南.md    # 自定义规则库编写教程
+│   └── AI配置指南.md        # 各 AI 服务配置方法
 └── output/                 # 报告输出目录
 ```
 
@@ -167,12 +199,15 @@ python tests/test_engine.py
 
 ## 扩展方向
 
-- [ ] 接入 LLM API 做语义级条款冲突检测（当前为关键词/正则）
-- [ ] Web UI（Gradio/Streamlit）拖拽上传
+- [x] 接入 LLM API 做语义级条款冲突检测
+- [x] Web UI（Gradio）拖拽上传
+- [x] AI 语义增强（条款匹配/冲突确认/补位建议/总体评价）
 - [ ] 规则库可视化编辑器
 - [ ] 支持 Excel/CSV 表格类文件解析
 - [ ] 报告导出 PDF
 - [ ] 多语言规则库（英文合同）
+- [ ] 跨字段逻辑校验（如"金额=单价×数量"）
+- [ ] OCR 集成（扫描件 PDF）
 
 ## 许可证
 
