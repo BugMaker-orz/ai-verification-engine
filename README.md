@@ -36,17 +36,29 @@ python app.py
 
 运行后浏览器会自动打开 http://127.0.0.1:7860 ，在页面上：
 
-1. 拖拽或点击上传多个文件（PDF / DOCX / TXT）
-2. 下拉选择规则库
-3. 输入报告名称（可选）
-4. 点击"开始验真"
-5. 页面显示评分、冲突列表、欠缺列表，可下载 HTML / Markdown 报告
+1. **（可选）配置 AI**：展开顶部"🤖 AI 设置"面板，填写 API 地址、Key、模型名，点"测试连接"确认可用后"保存配置"。配置后自动启用 AI 语义增强；不配置则使用基础规则匹配。
+2. 拖拽或点击上传多个文件（PDF / DOCX / TXT）
+3. 下拉选择规则库
+4. 输入报告名称（可选）
+5. 点击"开始验真"
+6. 页面显示评分、冲突列表、欠缺列表，可下载 HTML / Markdown 报告
+
+**支持的 AI 服务**：所有 OpenAI 兼容接口（DeepSeek、通义千问、豆包、OpenAI、本地模型等），只需填写对应的 base_url 和 model。
 
 ### 命令行使用
 
 ```bash
-# 基本用法
+# 基础模式（无 AI）
 python cli.py -r rules/general_contract.yaml -f doc1.pdf doc2.txt -o output/
+
+# AI 增强模式（命令行指定）
+python cli.py -r rules/general_contract.yaml -f doc1.pdf doc2.txt \
+  --ai-base-url https://api.deepseek.com/v1 \
+  --ai-key sk-xxx \
+  --ai-model deepseek-chat
+
+# AI 增强模式（从配置文件加载）
+python cli.py -r rules/general_contract.yaml -f doc1.pdf doc2.txt --ai-config config/ai_config.json
 
 # 指定报告文件名
 python cli.py -r rules/general_contract.yaml -f samples/contract_main.txt samples/contract_supplement.txt -o output/ -n my_report
