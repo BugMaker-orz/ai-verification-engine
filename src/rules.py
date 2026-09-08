@@ -29,9 +29,13 @@ class FieldRule:
     description: str = ""
 
     def extract(self, text: str) -> Optional[str]:
-        """从文本中按正则提取字段值。"""
+        """从文本中按正则提取字段值。
+
+        使用 MULTILINE 模式，使 ^/$ 锚点按行匹配；
+        否则整篇文档只有一个行首/行尾，^…$ 类规则几乎永远无法命中。
+        """
         for pat in self.patterns:
-            m = re.search(pat, text)
+            m = re.search(pat, text, re.MULTILINE)
             if m:
                 # 优先取第一个非空捕获组，否则取整个匹配
                 if m.groups():

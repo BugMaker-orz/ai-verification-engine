@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from jinja2 import Template
+from jinja2 import Environment, Template, select_autoescape
 
 from .conflict import ConflictFinding
 from .extractor import DocFields
@@ -68,10 +68,11 @@ class VerificationResult:
 
     @property
     def score(self) -> int:
-        """验真评分：100 - 加权扣分。"""
+        """验真评分：100 - 加权扣分（按文档数归一，避免多文档问题叠加直接归零）。"""
         weights = {"critical": 25, "high": 10, "medium": 4, "low": 1, "info": 0}
         deduction = sum(weights.get(f.severity, 0) for f in self.conflicts + self.gaps)
-        return max(0, 100 - deduction)
+        deduction = deduction / max(1, len(self.docs))
+        return max(0, 100 - round(deduction))
 
     @property
     def grade(self) -> str:
@@ -234,6 +235,8 @@ def generate_markdown(result: VerificationResult) -> str:
 
 
 # ---------- HTML 报告 ----------
+# HTML 报告开启自动转义，防止文档内容中的脚本/标签注入到报告页面。
+_HTML_ENV = Environment(autoescape=select_autoescape(["html", "htm"]))
 
 _HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -312,7 +315,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 {% for name, ef in df.fields.items() %}
 <tr>
   <td>{{ name }}</td>
-  <td>{{ ef.value if ef.found else '<em style="color:#dc2626">未找到</em>' }}</td>
+  <td>{% if ef.found %}{{ ef.value }}{% else %}<em style="color:#dc2626">未找到</em>{% endif %}</td>
   <td>{% if not ef.found %}<span class="badge" style="background:#dc2626">缺失</span>{% elif ef.format_valid == False %}<span class="badge" style="background:#ca8a04">格式不合法</span>{% else %}<span class="badge" style="background:#16a34a">✓</span>{% endif %}</td>
   <td>{{ ef.source_line or "-" }}</td>
 </tr>
@@ -372,8 +375,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 
 
 def generate_html(result: VerificationResult) -> str:
-    """生成 HTML 格式报告。"""
-    t = Template(_HTML_TEMPLATE)
+    """生成 HTML 格式报告（开启自动转义，防注入）。"""
+    t = _HTML_ENV.from_string(_HTML_TEMPLATE)
     return t.render(
         ruleset=result.ruleset,
         generated_at=result.generated_at,

@@ -26,6 +26,8 @@ COLLECT_PACKAGES = [
     'uvicorn',
     'pydantic',
     'pydantic_core',
+    'jsonschema',
+    'rfc3987',
     # ---- HTTP / 异步 ----
     'httpx',
     'httpcore',
