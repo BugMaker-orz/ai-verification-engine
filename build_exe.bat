@@ -59,26 +59,7 @@ if errorlevel 1 (
 )
 
 echo [4/4] Building exe, this is slow, please wait ...
-".venv\Scripts\python.exe" -m PyInstaller ^
-  --noconfirm ^
-  --onefile ^
-  --windowed ^
-  --name "AI-Verification-Engine" ^
-  --collect-all gradio ^
-  --collect-all gradio_client ^
-  --collect-all safehttpx ^
-  --collect-all groovy ^
-  --collect-all huggingface_hub ^
-  --hidden-import uvicorn.logging ^
-  --hidden-import uvicorn.loops.auto ^
-  --hidden-import uvicorn.protocols.http.auto ^
-  --hidden-import uvicorn.protocols.websockets.auto ^
-  --hidden-import uvicorn.lifespan.on ^
-  --add-data "rules;rules" ^
-  --add-data "samples;samples" ^
-  --add-data "config;config" ^
-  --add-data "docs;docs" ^
-  app.py
+".venv\Scripts\python.exe" -m PyInstaller --noconfirm AI-Verification-Engine.spec
 if errorlevel 1 (
     echo.
     echo BUILD FAILED! Please share the error message above.
