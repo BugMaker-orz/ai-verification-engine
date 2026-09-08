@@ -6,19 +6,35 @@ echo ============================================
 echo    AI Verification Engine - Windows Builder
 echo ============================================
 echo.
-echo This script will: create venv, install deps, build exe
-echo Internet required. Takes 5-10 minutes.
+
+REM ---- Detect a working Python launcher ----
+set "PY_CMD="
+where py >nul 2>nul && set "PY_CMD=py -3"
+if not defined PY_CMD (
+    where python >nul 2>nul && set "PY_CMD=python"
+)
+if not defined PY_CMD (
+    echo ERROR: Python was not found.
+    echo.
+    echo Please install Python 3.9+ from:
+    echo   https://www.python.org/downloads/
+    echo.
+    echo IMPORTANT: during install, check "Add Python to PATH"
+    echo.
+    pause
+    exit /b 1
+)
+echo Using Python launcher: %PY_CMD%
+%PY_CMD% --version
 echo.
 
-REM 1. Create venv if missing
+REM ---- 1. Create venv if missing ----
 if not exist ".venv\Scripts\python.exe" (
     echo [1/4] Creating virtual environment .venv ...
-    python -m venv .venv
+    %PY_CMD% -m venv .venv
     if errorlevel 1 (
         echo.
-        echo FAILED to create venv! Please check:
-        echo   1. Python 3.9+ installed (https://www.python.org/downloads/)
-        echo   2. "Add Python to PATH" was checked during install
+        echo FAILED to create venv!
         pause
         exit /b 1
     )
