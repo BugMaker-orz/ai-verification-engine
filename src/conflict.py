@@ -13,6 +13,9 @@ from typing import Dict, List, Optional, Tuple
 
 from .extractor import DocFields
 from .rules import CrossDocRule, RuleSet
+from . import semantic
+from .ai_client import AIConfig
+from typing import Optional
 
 
 @dataclass
@@ -77,9 +80,15 @@ def _values_conflict(v1: str, v2: str, field_name: str) -> Tuple[bool, str]:
     return True, f"文本不一致：'{v1}' vs '{v2}'"
 
 
-def detect_conflicts(doc_fields_list: List[DocFields], ruleset: RuleSet) -> List[ConflictFinding]:
-    """对所有跨文档规则执行冲突检测。"""
+def detect_conflicts(doc_fields_list: List[DocFields], ruleset: RuleSet,
+                     ai_config: Optional[AIConfig] = None) -> List[ConflictFinding]:
+    """对所有跨文档规则执行冲突检测。
+
+    ai_config 就绪时，对基础检测到的冲突做 AI 语义二次确认，
+    排除"表述不同但意思相同"的误报。
+    """
     findings: List[ConflictFinding] = []
+    ai_ready = ai_config is not None and ai_config.is_ready()
     if len(doc_fields_list) < 2:
         return findings
 
@@ -118,6 +127,15 @@ def detect_conflicts(doc_fields_list: List[DocFields], ruleset: RuleSet) -> List
             for df, val in present[1:]:
                 is_conflict, desc = _values_conflict(base_val, val, field_name)
                 if is_conflict:
+                    # AI 语义二次确认：排除"表述不同但意思相同"的误报
+                    if ai_ready:
+                        ai_conflict, ai_reason = semantic.semantic_conflict_check(
+                            base_val, val, field_name, ai_config
+                        )
+                        if not ai_conflict:
+                            # AI 判定为语义一致，跳过此冲突
+                            continue
+                        desc = f"{desc}（AI 确认：{ai_reason}）"
                     conflicts.append((df, val, desc))
 
             if conflicts:

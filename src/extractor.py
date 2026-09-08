@@ -7,6 +7,9 @@ from typing import Dict, List, Optional
 
 from .parser import ParsedDoc
 from .rules import FieldRule, RuleSet
+from . import semantic
+from .ai_client import AIConfig
+from typing import Optional
 
 
 @dataclass
@@ -71,11 +74,19 @@ def _find_line_number(text: str, value: str) -> Optional[int]:
     return None
 
 
-def extract_fields(doc: ParsedDoc, ruleset: RuleSet) -> DocFields:
-    """从单份文档中按规则库提取全部字段。"""
+def extract_fields(doc: ParsedDoc, ruleset: RuleSet,
+                   ai_config: Optional[AIConfig] = None) -> DocFields:
+    """从单份文档中按规则库提取全部字段。
+
+    ai_config 就绪时，正则提取不到的字段用 AI 语义提取增强。
+    """
     result = DocFields(doc=doc)
     for name, rule in ruleset.fields.items():
         value = rule.extract(doc.text)
+        extract_method = "正则提取"
+        # 正则提取不到时，用 AI 语义提取增强
+        if value is None and ai_config is not None and ai_config.is_ready():
+            value, extract_method = semantic.extract_field_semantic(doc.text, rule, ai_config)
         found = value is not None
         format_valid = None
         format_note = ""
@@ -92,6 +103,7 @@ def extract_fields(doc: ParsedDoc, ruleset: RuleSet) -> DocFields:
     return result
 
 
-def extract_all(docs: List[ParsedDoc], ruleset: RuleSet) -> List[DocFields]:
+def extract_all(docs: List[ParsedDoc], ruleset: RuleSet,
+                ai_config: Optional[AIConfig] = None) -> List[DocFields]:
     """批量提取。"""
-    return [extract_fields(d, ruleset) for d in docs]
+    return [extract_fields(d, ruleset, ai_config) for d in docs]

@@ -41,6 +41,10 @@ class VerificationResult:
     conflicts: List[ConflictFinding] = field(default_factory=list)
     gaps: List[GapFinding] = field(default_factory=list)
     generated_at: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    # AI 相关
+    ai_enabled: bool = False
+    ai_model: str = ""
+    ai_summary: str = ""
 
     @property
     def total_findings(self) -> int:
@@ -94,6 +98,7 @@ _MD_TEMPLATE = """# AI 验真报告
 **规则集**：{{ ruleset.name }} v{{ ruleset.version }}
 **生成时间**：{{ generated_at }}
 **验真文档**：{{ doc_count }} 份
+**检查模式**：{% if ai_enabled %}🤖 AI 语义增强（{{ ai_model }}）{% else %}📋 基础规则匹配{% endif %}
 
 ---
 
@@ -109,6 +114,13 @@ _MD_TEMPLATE = """# AI 验真报告
 | 低（low） | {{ low_count }} |
 | 跨文件冲突 | {{ conflict_count }} |
 | 欠缺/违规 | {{ gap_count }} |
+
+{% if ai_summary %}
+### 🤖 AI 总体评价
+
+{{ ai_summary }}
+
+{% endif %}
 
 ### 文档清单
 
@@ -213,6 +225,9 @@ def generate_markdown(result: VerificationResult) -> str:
         required_clause_count=len(result.ruleset.required_clauses),
         forbidden_clause_count=len(result.ruleset.forbidden_clauses),
         cross_doc_count=len(result.ruleset.cross_doc_rules),
+        ai_enabled=result.ai_enabled,
+        ai_model=result.ai_model,
+        ai_summary=result.ai_summary,
         severity_label=lambda s: SEVERITY_LABEL.get(s, s),
         severity_color=lambda s: SEVERITY_COLOR.get(s, "#000"),
     )
@@ -260,7 +275,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 
 <h1>AI 验真报告</h1>
 <div class="meta">
-  规则集：{{ ruleset.name }} v{{ ruleset.version }} ｜ 生成时间：{{ generated_at }} ｜ 验真文档：{{ doc_count }} 份
+  规则集：{{ ruleset.name }} v{{ ruleset.version }} ｜ 生成时间：{{ generated_at }} ｜ 验真文档：{{ doc_count }} 份 ｜ 检查模式：{% if ai_enabled %}🤖 AI 语义增强（{{ ai_model }}）{% else %}📋 基础规则匹配{% endif %}
 </div>
 
 <h2>一、验真概览</h2>
@@ -272,6 +287,13 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="score-item"><div class="num">{{ conflict_count }}</div><div class="label">跨文件冲突</div></div>
   <div class="score-item"><div class="num">{{ gap_count }}</div><div class="label">欠缺/违规</div></div>
 </div>
+
+{% if ai_summary %}
+<div class="card" style="border-left:4px solid #7c3aed;">
+<strong>🤖 AI 总体评价</strong>
+<div style="margin-top:0.5rem; line-height:1.7;">{{ ai_summary }}</div>
+</div>
+{% endif %}
 
 <div class="card">
 <strong>文档清单</strong>
@@ -373,6 +395,9 @@ def generate_html(result: VerificationResult) -> str:
         required_clause_count=len(result.ruleset.required_clauses),
         forbidden_clause_count=len(result.ruleset.forbidden_clauses),
         cross_doc_count=len(result.ruleset.cross_doc_rules),
+        ai_enabled=result.ai_enabled,
+        ai_model=result.ai_model,
+        ai_summary=result.ai_summary,
         severity_label=lambda s: SEVERITY_LABEL.get(s, s),
         severity_color=lambda s: SEVERITY_COLOR.get(s, "#000"),
     )
