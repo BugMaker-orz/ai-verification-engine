@@ -191,7 +191,7 @@ def generate_remedy_suggestion(rule_name: str, description: str, finding_type: s
     }
     type_label = type_map.get(finding_type, finding_type)
 
-    prompt = f"""你是一个合同审查专家。文档中发现一个问题：{type_label}「{rule.name}」。
+    prompt = f"""你是一个合同审查专家。文档中发现一个问题：{type_label}「{rule_name}」。
 
 问题说明：{description}
 

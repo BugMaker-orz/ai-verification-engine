@@ -2,6 +2,14 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [2.1.1] - 2026-09-08
+
+### 修复
+- **AI 补位建议崩溃**：`generate_remedy_suggestion` 提示词中误用未定义变量 `rule.name`，启用 AI 后生成补位建议时必然抛 `NameError: name 'rule' is not defined`，已改为 `rule_name`
+
+### 测试
+- 新增 7 项 AI 语义链路测试（补位建议/字段提取/条款匹配/冲突排除/总体摘要），覆盖 AI 启用与未启用两种路径
+
 ## [2.1.0] - 2026-09-08
 
 ### 修复
