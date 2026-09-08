@@ -17,6 +17,29 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# PyInstaller --windowed（无控制台）模式下 sys.stdout/stderr 为 None，
+# uvicorn 启动日志配置时会调用 sys.stdout.isatty() 直接崩溃，这里兜底替换为空流。
+if sys.stdout is None or sys.stderr is None:
+    import io
+
+    class _NullStream(io.TextIOBase):
+        def write(self, s):
+            return len(s) if s else 0
+
+        def writelines(self, lines):
+            pass
+
+        def flush(self):
+            pass
+
+        def isatty(self):
+            return False
+
+    if sys.stdout is None:
+        sys.stdout = _NullStream()
+    if sys.stderr is None:
+        sys.stderr = _NullStream()
+
 import gradio as gr
 from src.ai_client import AIConfig, load_config, save_config, test_connection
 from src.engine import VerificationEngine
