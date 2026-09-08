@@ -363,11 +363,25 @@ def build_ui():
     return demo
 
 
+def _find_free_port(start: int = 7860, end: int = 7875) -> int:
+    """在 [start, end] 范围内找一个空闲端口，避免端口被占用时启动失败。"""
+    import socket
+    for port in range(start, end + 1):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    raise OSError(f"端口 {start}-{end} 均被占用，请关闭占用端口的程序后重试")
+
+
 if __name__ == "__main__":
     demo = build_ui()
+    port = _find_free_port()
     demo.launch(
         server_name="127.0.0.1",
-        server_port=7860,
+        server_port=port,
         inbrowser=True,
         show_error=True,
         theme=gr.themes.Soft(),
